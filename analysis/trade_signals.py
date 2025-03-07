@@ -1,87 +1,105 @@
-from analysis.indicators import TechnicalIndicators
-from data_fetching.heikin_ashi import HeikinAshiConverter
-from data_fetching.fetch_data import MarketDataFetcher
-from data_fetching.trending_coins import TrendingCoins
-from notifications.email_alerts import EmailAlerts
 from notifications.telegram_alerts import TelegramAlerts
-
-print("🚀 Starting Trade Signal Detection...")  # Debugging Start
+from datetime import datetime
+from data_fetching.fetch_data import MarketDataFetcher
+from data_fetching.heikin_ashi import HeikinAshiConverter
+from analysis.indicators import TechnicalIndicators
+from data_fetching.trending_coins import TrendingCoins
 
 class TradeSignalDetector:
-    """Detects trade signals based on MACD and Heikin Ashi trends"""
+    """Detects trade signals based on MACD and Heikin Ashi trends."""
 
     def __init__(self):
-        print("📊 Initializing TradeSignalDetector...")  # Debugging
+        print("📊 Initializing TradeSignalDetector...")
         self.fetcher = MarketDataFetcher()
-        self.trending = TrendingCoins().fetch_trending_coins()
-        self.email_alerts = EmailAlerts()
         self.telegram_alerts = TelegramAlerts()
-        print(f"🔍 Trending Coins: {self.trending}")  # Debugging
+        self.signals = []
 
     def detect_trade_signals(self):
-        """Identifies potential buy/sell signals"""
-        print("📈 Detecting trade signals...")  # Debugging
-        signals = []
+        """Identifies potential buy/sell signals and sends alerts via Telegram."""
+        print("📈 Detecting trade signals...")
+        self.signals = []
 
-        for coin in self.trending:
-            print(f"🔍 Fetching data for {coin}...")  # Debugging
+        for coin in TrendingCoins().fetch_trending_coins():
+            print(f"🔍 Fetching data for {coin}...")
             df = self.fetcher.fetch_ohlcv(coin)
-
             if df is None or len(df) < 30:
-                print(f"⚠️ Skipping {coin} due to insufficient data.")  # Debugging
-                continue  # Skip if data is unavailable or too short
+                print(f"⚠️ Skipping {coin} due to insufficient data.")
+                continue
 
-            # Convert to Heikin Ashi format
-            print(f"🔥 Converting {coin} to Heikin Ashi format...")  # Debugging
+            print(f"🔥 Converting {coin} to Heikin Ashi format...")
             df_ha = HeikinAshiConverter.convert(df)
-
-            # Compute MACD
-            print(f"📊 Computing MACD for {coin}...")  # Debugging
+            print(f"📊 Computing MACD for {coin}...")
             df_macd = TechnicalIndicators.compute_macd(df_ha)
-
-            # Ensure we get the last available close price
-            last_close_price = df_macd['close'].iloc[-1] if 'close' in df_macd.columns else None
-
-            signal = None
 
             # Check for trade signals
             if TechnicalIndicators.is_macd_bullish_crossover(df_macd):
-                signal = {"coin": coin, "action": "BUY", "price": last_close_price}
-                print(f"✅ BUY signal detected for {coin}")  # Debugging
-                self.telegram_alerts.send_alert(f"🚀 Trade Signal: {coin} → **BUY** at ${signal['price']:.2f}")
+                signal = {
+                    "coin": coin,
+                    "action": "BUY",
+                    "price": df_macd['close'].iloc[-1],
+                    "dates": df_macd.index.tolist(),
+                    "prices": df_macd['close'].tolist(),
+                    "trend": "bullish",
+                    "strength": 5  # Placeholder for scoring
+                }
+                self.signals.append(signal)
+                self.send_intra_alert(signal)
 
             elif TechnicalIndicators.is_macd_bearish_crossover(df_macd):
-                signal = {"coin": coin, "action": "SELL", "price": last_close_price}
-                print(f"❌ SELL signal detected for {coin}")  # Debugging
-                self.telegram_alerts.send_alert(f"📉 Trade Signal: {coin} → **SELL** at ${signal['price']:.2f}")
+                signal = {
+                    "coin": coin,
+                    "action": "SELL",
+                    "price": df_macd['close'].iloc[-1],
+                    "dates": df_macd.index.tolist(),
+                    "prices": df_macd['close'].tolist(),
+                    "trend": "bearish",
+                    "strength": 2
+                }
+                self.signals.append(signal)
+                self.send_intra_alert(signal)
 
-            # Only append the signal if it's valid
-            if signal:
-                signals.append(signal)
+        # Send EOD summary
+        if self.signals:
+            self.send_eod_summary()
 
-                print("✅ Trade Signal Detection Complete!")  # Debugging
+        print("✅ Trade Signal Detection Complete!")
+        return self.signals
 
-                # 🔴 **Send Intra-Day Alerts**
-                # self.email_alerts.send_trade_signal_alert(signals)
-                # self.telegram_alerts.send_trade_signal_alert(signals)
+    def send_intra_alert(self, signal):
+        """Send intra-day alerts when a trade signal is detected."""
+        message = f"🚀 *{signal['coin']} Trade Signal* 🚀\n"
+        message += f"🔹 *{signal['action']} Signal Detected*\n"
+        message += f"🔹 *Entry Price:* ${signal['price']:.2f}\n"
+        message += f"🔹 *Strategy:* MACD + Heikin Ashi Confirmation\n"
+        message += "📈 *Trend Indication:* Bullish ✅\n" if signal["trend"] == "bullish" else "📉 *Trend Indication:* Bearish ❌\n"
 
-                return signals
-    def send_eod_summary(self, signals):
-        """Sends an end-of-day summary alert via Telegram."""
-        if not signals:
-            self.telegram_alerts.send_alert("⚠️ No trade signals detected today. Market may be flat.")
-        else:
-            summary_message = "📊 **End-of-Day Trade Summary** 📊\n\n"
-            for signal in signals:
-                summary_message += f"🔹 {signal['coin']} → {signal['action']} at ${signal['price']:.2f}\n"
+        print(f"📡 Sending intra-day alert: {message}")
+        self.telegram_alerts.send_alert(message)
 
-            self.telegram_alerts.send_alert(summary_message)
+    def send_eod_summary(self):
+        """Send the End-of-Day summary with trading performance."""
+        now = datetime.utcnow().strftime("%B %d, %Y")
+        summary_message = f"📊 *End-of-Day Trading Summary* 📊\n(Generated on: {now})\n\n---\n"
+
+        for i, signal in enumerate(self.signals):
+            summary_message += f"💰 *Trade #{i + 1}: {signal['coin']}*\n"
+            summary_message += f"{'✅ *Good Trade*' if signal['strength'] >= 4 else '❌ *Bad Trade*'}\n"
+            summary_message += f"🕒 *Trade Executed:* {now} UTC\n"
+            summary_message += f"🔹 *Entry Price:* ${signal['price']:.2f}\n"
+            summary_message += f"🎯 *Target Price:* TBD\n"
+            summary_message += f"🛑 *Stop Loss:* TBD\n"
+            summary_message += f"💰 *Profit/Loss:* TBD\n"
+            summary_message += "---\n"
+
+        summary_message += f"\n📈 *Performance Summary:*\n"
+        summary_message += f"✅ *Total Trades:* {len(self.signals)}\n"
+        summary_message += f"✔ *Successful Trades:* TBD\n"
+        summary_message += f"❌ *Failed Trades:* TBD\n"
+
+        print(f"📡 Sending EOD Summary:\n{summary_message}")
+        self.telegram_alerts.send_alert(summary_message)
+
+
 if __name__ == "__main__":
     detector = TradeSignalDetector()
-    trade_signals = detector.detect_trade_signals()
-
-    print("\n🚀 Final Detected Trade Signals:")
-    print(f"Signals: {trade_signals}")
-
-    # Send EOD summary after detecting signals
-    detector.send_eod_summary(trade_signals)
+    detector.detect_trade_signals()
