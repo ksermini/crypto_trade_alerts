@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trade Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            background-color: #121212;
+            color: white;
+        }
+        #sidebar {
+            width: 250px;
+            padding: 20px;
+            background: #1e1e1e;
+            height: 100vh;
+        }
+        .coin {
+            cursor: pointer;
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .coin:hover {
+            background: #555;
+        }
+        #main {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        .signal-box {
+            border: 5px solid;
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .green-box { border-color: green; }
+        .red-box { border-color: red; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar with top 5 coins -->
+    <div id="sidebar">
+        <h2>Top Signals</h2>
+        {% for coin in top_signals %}
+            {% set coin_symbol = coin['coin'] %}
+            <div class="coin" onclick="loadCoin('{{ coin_symbol|escape }}')">
+                {{ coin_symbol }}
+            </div>
+        {% endfor %}
+    </div>
+    
+    
+
+    <!-- Main content -->
+    <div id="main">
+        <h1>Best Signal: {{ best_signal['coin'] if best_signal else 'No Data' }}</h1>
+        <div id="chart-container" class="signal-box"></div>
+    </div>
+
+    <script>
+        function loadCoin(coin) {
+            console.log("Loading data for:", coin);
+            fetch(`/coin/${coin}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("API Response:", data);
+
+                    if (!data.chart) {
+                        console.error("Error: No chart data found.");
+                        document.getElementById("chart-container").innerHTML = "<p>Failed to load chart.</p>";
+                        return;
+                    }
+
+                    let chartContainer = document.getElementById("chart-container");
+                    chartContainer.className = "signal-box " + data.trend_color;
+
+                    let chartData = JSON.parse(data.chart);
+                    Plotly.newPlot("chart-container", chartData.data, chartData.layout);
+                })
+                .catch(error => {
+                    console.error("Error loading chart:", error);
+                    document.getElementById("chart-container").innerHTML = "<p>Failed to load chart.</p>";
+                });
+        }
+
+        window.onload = function() {
+            let bestSignalCoin = "{{ best_signal['coin'] if best_signal else '' }}";
+            if (bestSignalCoin) {
+                loadCoin(bestSignalCoin);
+            }
+        };
+    </script>
+
+</body>
+</html>

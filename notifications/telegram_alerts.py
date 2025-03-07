@@ -1,28 +1,45 @@
-import requests
 import os
+import requests
 
 class TelegramAlerts:
-    """Handles sending trade alerts via Telegram"""
+    """Handles sending alerts to a Telegram chat."""
 
     def __init__(self):
-        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Set in environment
-        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")  # Telegram group or user ID
+        # Load environment variables
+        self.bot_token = "7549688024:AAETD23ByGBxQws9HzksWtc7ZtspJG7PIVM"
+        self.chat_ids = [7376632979,7897491592]
+
+        # Debugging output
+        print(f"🔍 Debugging Telegram Alerts:")
+        print(f"➡️ Bot Token: {self.bot_token}")
+        print(f"➡️ Chat ID: {self.chat_ids}")
+
+        if not self.bot_token or not self.chat_ids:
+            raise ValueError("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID!")
+
+        # Define the API URL
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-    def send_telegram_message(self, message):
-        """Send a message to Telegram"""
-        try:
-            payload = {
-                "chat_id": self.chat_id,
-                "text": message,
-                "parse_mode": "Markdown",
-            }
-            response = requests.post(self.api_url, json=payload)
-            response.raise_for_status()  # Raise error if request fails
-            print(f"✅ Telegram alert sent: {message[:50]}...")  # Print preview
+    def send_alert(self, message):
+        """Sends a message to the configured Telegram chat."""
+        # data = {
+        #     "chat_id": self.chat_id,
+        #     "text": message
+        # }
 
-        except Exception as e:
-            print(f"❌ Failed to send Telegram alert: {e}")
+        # print(f"📡 Sending message to Telegram: {data}")  # Debugging output
+
+        # response = requests.post(self.api_url, json=data)
+        for chat_id in self.chat_ids:
+            payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+            response = requests.post(self.api_url, json=payload)
+        
+        if response.status_code == 200:
+            print(f"✅ Telegram message sent successfully!")
+        else:
+            print(f"❌ Failed to send Telegram alert: {response.status_code}, {response.text}")
+
+
 
     def send_trade_signal_alert(self, trade_signals):
         """Send an intra-day Telegram alert for new trade signals"""
@@ -34,7 +51,7 @@ class TelegramAlerts:
         for signal in trade_signals:
             message += f"🔹 *{signal['coin']}* → {signal['action']} at *${signal['price']:.2f}*\n"
 
-        self.send_telegram_message(message)
+        self.send_alert(message)
 
     def send_eod_summary(self, trade_signals):
         """Send an end-of-day summary Telegram alert"""
@@ -46,4 +63,10 @@ class TelegramAlerts:
             for signal in trade_signals:
                 message += f"🔹 *{signal['coin']}* → {signal['action']} at *${signal['price']:.2f}*\n"
 
-        self.send_telegram_message(message)
+        self.send_alert(message)
+
+
+# Run the test
+if __name__ == "__main__":
+    telegram_alert = TelegramAlerts()
+    telegram_alert.send_alert("🚀 Test alert from bot!")
