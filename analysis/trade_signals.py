@@ -31,28 +31,28 @@ class TradeSignalDetector:
             print(f"🔥 Converting {coin} to Heikin Ashi format...")  # Debugging
             df_ha = HeikinAshiConverter.convert(df)
 
+            # Debugging Heikin Ashi trend detection
+            print(f"📊 Heikin Ashi Strength for {coin} (last 5 entries):")
+            print(df_ha[["close", "open"]].tail(5))
+
             # Compute MACD
             print(f"📊 Computing MACD for {coin}...")  # Debugging
             df_macd = TechnicalIndicators.compute_macd(df_ha)
+
+            # Check for trade signals
             print(f"\n📊 MACD & Signal Line for {coin} (Last 10 Entries):")
-            print(df_macd[['macd', 'macd_signal']].tail(10))
+            print(df_macd[["macd", "macd_signal"]].tail(10))
 
-            # Print last 10 MACD values for debugging
-            print(f"\n📊 MACD Values for {coin}:")
-            print(df_macd[["macd", "macd_signal"]].tail(10))  # Print last 10 MACD values
-            print(f"🔍 Heikin Ashi Trend for {coin}: {TechnicalIndicators.detect_heikin_ashi_trend(df_ha)}")
-
-            # Check for trade signals with a threshold
-            if TechnicalIndicators.is_macd_bullish_crossover(df_macd, threshold=0.01):
+            if TechnicalIndicators.is_macd_bullish_crossover(df_macd):
                 print(f"✅ BUY signal detected for {coin}")  # Debugging
                 signals.append({"coin": coin, "action": "BUY", "price": df_macd['close'].iloc[-1]})
 
-            elif TechnicalIndicators.is_macd_bearish_crossover(df_macd, threshold=0.01):
+            elif TechnicalIndicators.is_macd_bearish_crossover(df_macd):
                 print(f"❌ SELL signal detected for {coin}")  # Debugging
                 signals.append({"coin": coin, "action": "SELL", "price": df_macd['close'].iloc[-1]})
 
         print("✅ Trade Signal Detection Complete!")  # Debugging
-        return signals  # Ensure we return all signals instead of stopping early
+        return signals
 
 if __name__ == "__main__":
     detector = TradeSignalDetector()

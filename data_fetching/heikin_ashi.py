@@ -1,27 +1,32 @@
-from data_fetching.trending_coins import TrendingCoins
-from data_fetching.fetch_data import MarketDataFetcher
-
+import pandas as pd
 
 class HeikinAshiConverter:
-    """Converts standard candlestick data to Heikin Ashi format"""
+    """Class to convert standard candlestick data to Heikin Ashi format"""
 
     @staticmethod
     def convert(df):
+        """Convert OHLCV dataframe to Heikin Ashi format"""
+
+        # Create a copy to avoid modifying original data
         df_ha = df.copy()
-        df_ha["close"] = (df["open"] + df["high"] + df["low"] + df["close"]) / 4
-        df_ha["open"] = (df["open"].shift(1) + df["close"].shift(1)) / 2
-        df_ha["high"] = df[["open", "close", "high"]].max(axis=1)
-        df_ha["low"] = df[["open", "close", "low"]].min(axis=1)
-        df_ha.iloc[0, df.columns.get_loc("open")] = df["open"].iloc[0]
+
+        # Compute Heikin Ashi Close
+        df_ha["ha_close"] = (df["open"] + df["high"] + df["low"] + df["close"]) / 4
+
+        # Compute Heikin Ashi Open (shifted by one row)
+        df_ha["ha_open"] = (df["open"].shift(1) + df["close"].shift(1)) / 2
+
+        # Fill the first row to avoid NaN values
+        df_ha.loc[df_ha.index[0], "ha_open"] = df.loc[df.index[0], "open"]
+
+        # Compute Heikin Ashi High & Low
+        df_ha["ha_high"] = df_ha[["ha_open", "ha_close", "high"]].max(axis=1)
+        df_ha["ha_low"] = df_ha[["ha_open", "ha_close", "low"]].min(axis=1)
+
+        # Drop NaN values (if any)
+        df_ha = df_ha.dropna()
+
+        # Rename columns to match original format
+        df_ha.rename(columns={"ha_open": "open", "ha_close": "close", "ha_high": "high", "ha_low": "low"}, inplace=True)
+
         return df_ha
-
-if __name__ == "__main__":
-    trending = TrendingCoins().fetch_trending_coins()
-    fetcher = MarketDataFetcher()
-
-    for coin in trending:
-        df = fetcher.fetch_ohlcv(coin)
-        if df is not None:
-            df_ha = HeikinAshiConverter.convert(df)
-            print(f"\n🔥 Heikin Ashi for {coin}:")
-            print(df_ha.head())
