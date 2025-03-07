@@ -38,7 +38,10 @@ class TradeSignalDetector:
                     "action": "BUY",
                     "price": df_macd['close'].iloc[-1],
                     "dates": df_macd.index.tolist(),
-                    "prices": df_macd['close'].tolist(),
+                    "open": df_macd['open'].tolist(),
+                    "high": df_macd['high'].tolist(),
+                    "low": df_macd['low'].tolist(),
+                    "close": df_macd['close'].tolist(),
                     "trend": "bullish",
                     "strength": 5  # Placeholder for scoring
                 }
@@ -51,15 +54,19 @@ class TradeSignalDetector:
                     "action": "SELL",
                     "price": df_macd['close'].iloc[-1],
                     "dates": df_macd.index.tolist(),
-                    "prices": df_macd['close'].tolist(),
+                    "open": df_macd['open'].tolist(),
+                    "high": df_macd['high'].tolist(),
+                    "low": df_macd['low'].tolist(),
+                    "close": df_macd['close'].tolist(),
                     "trend": "bearish",
                     "strength": 2
                 }
                 self.signals.append(signal)
                 self.send_intra_alert(signal)
 
-        # Send EOD summary
-        if self.signals:
+        # Send EOD summary if it's late at night
+        now = datetime.now().strftime("%H:%M")
+        if self.signals and now >= "23:00":
             self.send_eod_summary()
 
         print("✅ Trade Signal Detection Complete!")
@@ -86,15 +93,10 @@ class TradeSignalDetector:
             summary_message += f"{'✅ *Good Trade*' if signal['strength'] >= 4 else '❌ *Bad Trade*'}\n"
             summary_message += f"🕒 *Trade Executed:* {now} UTC\n"
             summary_message += f"🔹 *Entry Price:* ${signal['price']:.2f}\n"
-            summary_message += f"🎯 *Target Price:* TBD\n"
-            summary_message += f"🛑 *Stop Loss:* TBD\n"
-            summary_message += f"💰 *Profit/Loss:* TBD\n"
             summary_message += "---\n"
 
         summary_message += f"\n📈 *Performance Summary:*\n"
         summary_message += f"✅ *Total Trades:* {len(self.signals)}\n"
-        summary_message += f"✔ *Successful Trades:* TBD\n"
-        summary_message += f"❌ *Failed Trades:* TBD\n"
 
         print(f"📡 Sending EOD Summary:\n{summary_message}")
         self.telegram_alerts.send_alert(summary_message)
