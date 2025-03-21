@@ -26,24 +26,51 @@ def get_coin_data(coin_name):
 
     print(f"🔍 Debugging Coin Data for {coin_name}: {coin_signal}")  # Debugging
 
-    # Ensure correct format for Plotly
-    chart_data = {
-        "data": [{
-            "x": list(range(len(coin_signal["dates"]))),  # Ensure X-axis values are numeric
-            "open": coin_signal["open"],
-            "high": coin_signal["high"],
-            "low": coin_signal["low"],
-            "close": coin_signal["close"],
-            "type": "candlestick"
-        }],
-        "layout": {
-            "title": f"Heikin Ashi Candles for {coin_name}",
-            "xaxis": {"title": "Time", "rangeslider": {"visible": False}},  # Ensure x-axis shows time
-            "yaxis": {"title": "Price"},
-            "plot_bgcolor": "rgba(0,0,0,0)",
-            "paper_bgcolor": "rgba(0,0,0,0)"
+    # Find the index of the last candle that triggered the signal
+    signal_index = len(coin_signal["dates"]) - 1
+    signal_x = coin_signal["dates"][signal_index]
+    signal_y = coin_signal["close"][signal_index]
+
+    # Define the highlight box coordinates
+    box_shape = {
+        "type": "rect",
+        "xref": "x",
+        "yref": "y",
+        "x0": signal_x - 2,  # Small margin around the candlestick
+        "x1": signal_x + 2,
+        "y0": signal_y * 0.995,  # Small margin around price
+        "y1": signal_y * 1.005,
+        "line": {
+            "color": "green" if coin_signal["trend"] == "bullish" else "red",
+            "width": 3
         }
     }
+
+    # Ensure correct format for Plotly Heikin Ashi chart
+    chart_data = {
+        "data": [
+            {
+                "x": coin_signal["dates"],
+                "open": coin_signal["open"],
+                "high": coin_signal["high"],
+                "low": coin_signal["low"],
+                "close": coin_signal["close"],
+                "type": "candlestick",
+                "name": "Heikin Ashi Candles"
+            }
+        ],
+        "layout": {
+            "title": f"Heikin Ashi Candles for {coin_name}",
+            "xaxis": {"title": "Time", "rangeslider": {"visible": False}},
+            "yaxis": {"title": "Price"},
+            "plot_bgcolor": "rgba(0,0,0,0)",
+            "paper_bgcolor": "rgba(0,0,0,0)",
+            "shapes": [box_shape]  # Add the highlight rectangle
+        }
+    }
+
+    # return jsonify({"chart": chart_data})
+
 
     trend_color = "green-box" if coin_signal["trend"] == "bullish" else "red-box"
 

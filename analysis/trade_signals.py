@@ -66,7 +66,7 @@ class TradeSignalDetector:
 
         # Send EOD summary if it's late at night
         now = datetime.now().strftime("%H:%M")
-        if self.signals and now >= "23:00":
+        if self.signals and now >= "01:00":
             self.send_eod_summary()
 
         print("✅ Trade Signal Detection Complete!")

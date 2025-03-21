@@ -3,62 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Trade Signals</title>
+    <title>Crypto Trade Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
             background-color: #121212;
             color: white;
-            display: flex;
-            height: 100vh;
+            text-align: center;
             margin: 0;
         }
-        #sidebar {
-            width: 20%;
-            background: #1e1e1e;
+        #chart-container {
+            width: 80%;
+            margin: auto;
+            height: 500px;
+            background-color: #1E1E1E;
             padding: 20px;
-            border-right: 2px solid #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            border-radius: 10px;
+            transition: border 0.5s ease-in-out;
+        }
+        .green-box {
+            border: 5px solid green;
+        }
+        .red-box {
+            border: 5px solid red;
+        }
+        #sidebar {
+            position: fixed;
+            right: 0;
+            top: 50px;
+            width: 200px;
+            background-color: #1E1E1E;
+            padding: 10px;
+            border-left: 2px solid white;
         }
         .coin {
-            background: #292929;
             padding: 10px;
-            margin: 8px 0;
-            width: 100%;
-            text-align: center;
-            border-radius: 5px;
+            margin: 5px;
+            background: #333;
             cursor: pointer;
-            transition: 0.3s;
+            border-radius: 5px;
         }
         .coin:hover {
             background: #444;
         }
-        #main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-        .green-box, .red-box {
-            padding: 10px;
-            font-weight: bold;
-            border-radius: 5px;
-        }
-        .green-box {
-            background-color: #16a085;
-            color: white;
-        }
-        .red-box {
-            background-color: #c0392b;
-            color: white;
-        }
     </style>
 </head>
 <body>
+    <h1>Crypto Trade Signals</h1>
+    
+    <div id="chart-container" class="green-box">
+        <h2 id="coin-title">Select a Coin</h2>
+        <div id="chart"></div>
+    </div>
+
     <div id="sidebar">
         <h2>Top Signals</h2>
         {% for coin in top_signals %}
@@ -69,33 +67,27 @@
         {% endfor %}
     </div>
 
-    <div id="main-content">
-        <h1>Crypto Trade Signals Dashboard</h1>
-        <div id="trend-box" class="{{ 'green-box' if best_signal.trend == 'bullish' else 'red-box' }}">
-            Best Signal: {{ best_signal.coin }} ({{ best_signal.action }})
-        </div>
-        <div id="chart"></div>
-    </div>
-
     <script>
-        function loadCoin(coin) {
-            fetch(`/coin/${coin}`)
+        function loadCoin(coinName) {
+            fetch(`/coin/${coinName}`)
                 .then(response => response.json())
                 .then(data => {
-                    let chartData = JSON.parse(data.chart);
-                    Plotly.newPlot('chart', chartData.data, chartData.layout);
-
-                    let trendBox = document.getElementById('trend-box');
-                    trendBox.className = data.trend_color;
-                    trendBox.textContent = `Current Signal: ${coin}`;
+                    if (data.error) {
+                        alert("Coin not found!");
+                        return;
+                    }
+    
+                    document.getElementById("coin-title").innerText = coinName;
+                    
+                    let chartData = data.chart;
+                    let layout = chartData.layout;
+    
+                    // Plot chart with highlighted rectangle
+                    Plotly.newPlot('chart', chartData.data, layout);
                 })
-                .catch(error => console.error("Error fetching coin data:", error));
+                .catch(error => console.error("Error loading coin:", error));
         }
-
-        // Load the best signal on startup
-        window.onload = function() {
-            loadCoin("{{ best_signal.coin }}");
-        };
     </script>
+    
 </body>
 </html>
